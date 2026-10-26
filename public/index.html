@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>에어하키</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+<style>
+  /* 아이폰 사파리는 -webkit- 접두사를 붙여야 알아듣는다: 버튼을 누르다 글자가 파랗게 선택(블록)되거나
+     길게 눌러 복사 메뉴가 뜨지 않게. 입력칸은 그대로 선택·붙여넣기 되게 둔다 */
+  *, *::before, *::after { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  input, textarea, [contenteditable] { -webkit-user-select:text; user-select:text; -webkit-touch-callout:default; }
+
+  /* 작은 오락실 공통 스티커 스타일: 진한 남보라 테두리 + 아래로 떨어진 그림자 + 둥근 글꼴 */
+  :root { --ink:#2b1d52; --yellow:#ffd23f; --pink:#ff5fa2; --muted:#6b5c95; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body {
+    width:100%; height:100%; overflow:hidden;
+    background:
+      repeating-linear-gradient(-30deg, rgba(255,255,255,.07) 0 26px, transparent 26px 56px),
+      linear-gradient(180deg, #4f8cff 0%, #6b5cff 55%, #8a4fe0 100%);
+    font-family:'Jua', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    color:var(--ink);
+    touch-action:none;
+  }
+  #stage { width:100%; height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px; }
+  #hud { display:flex; align-items:center; gap:6px; padding:0 2px 8px; font-variant-numeric:tabular-nums; width:100%; position:relative; z-index:2; }
+  #hud .item {
+    display:flex; align-items:center; gap:5px; white-space:nowrap;
+    background:#fff; border:3px solid var(--ink); border-radius:999px; box-shadow:0 4px 0 var(--ink);
+    padding:2px 12px; height:38px;
+  }
+  #hud .item.score { background:var(--yellow); flex:1; min-width:0; }
+  #hud .label { font-size:11px; color:var(--muted); }
+  #hud .item.score .label { color:#8a5a00; }
+  #hud .value { font-size:21px; }
+  #hud .icons { display:flex; gap:6px; margin-left:auto; }
+  #hud button {
+    background:#fff; border:3px solid var(--ink); color:var(--ink); position:relative;
+    width:36px; height:36px; border-radius:12px; font-size:15px; cursor:pointer; box-shadow:0 4px 0 var(--ink);
+  }
+  #hud button::after { content:''; position:absolute; inset:-10px -6px; }
+  #hud button:active { transform:translateY(3px); box-shadow:0 1px 0 var(--ink); }
+
+  #wrap { position:relative; }
+
+  #overlay {
+    position:absolute; inset:0; z-index:40;
+    display:flex; flex-direction:column; align-items:center; justify-content:safe center; gap:12px;
+    text-align:center; padding:18px; background:rgba(43,29,82,.74); border-radius:22px;
+    backdrop-filter:blur(3px); overflow-y:auto; touch-action:pan-y;
+  }
+  #overlay.hidden { display:none; }
+  #overlay h1, #overlay h2 { color:#fff; font-weight:400; paint-order:stroke fill; -webkit-text-stroke:6px var(--ink); text-shadow:0 5px 0 var(--ink); }
+  #overlay h1 { font-size:clamp(40px, 12vw, 54px); line-height:1.05; color:var(--yellow); }
+  #overlay h2 { font-size:30px; }
+  #overlay p { font-size:14px; line-height:1.55; color:#fff; }
+  #overlay p b { color:var(--yellow); font-weight:400; }
+  #overlay .big { font-size:48px; color:var(--yellow); font-variant-numeric:tabular-nums; line-height:1; paint-order:stroke fill; -webkit-text-stroke:6px var(--ink); text-shadow:0 5px 0 var(--ink); }
+  #overlay .tag { display:inline-block; background:var(--pink); color:#fff; font-size:15px; padding:3px 14px; border-radius:999px; border:3px solid var(--ink); box-shadow:0 3px 0 var(--ink); }
+  #overlay .card2 {
+    font-size:14px; color:var(--ink); line-height:1.7; text-align:left; background:#fff; border:3px solid var(--ink);
+    border-radius:18px; box-shadow:0 5px 0 var(--ink); padding:10px 16px;
+  }
+  #overlay .stats { display:grid; grid-template-columns:auto auto; gap:3px 18px; font-size:16px; font-variant-numeric:tabular-nums; }
+  #overlay .stats dt { color:var(--muted); text-align:right; }
+  #overlay button {
+    background:var(--yellow); color:var(--ink); font-size:21px; font-family:inherit; border:3px solid var(--ink);
+    border-radius:999px; padding:10px 36px; box-shadow:0 5px 0 var(--ink); cursor:pointer;
+  }
+  #overlay button small { display:block; font-size:12px; color:var(--muted); margin-top:1px; }
+  #overlay button.sub { background:#fff; font-size:16px; padding:7px 22px; box-shadow:0 4px 0 var(--ink); }
+  #overlay button:active { transform:translateY(4px); box-shadow:0 1px 0 var(--ink); }
+  #overlay .col { display:flex; flex-direction:column; align-items:center; gap:9px; }
+
+  @media (max-width:420px) {
+    #hud { gap:4px; }
+    #hud .label { display:none; }
+    #hud .item { padding:2px 10px; height:34px; box-shadow:0 3px 0 var(--ink); }
+    #hud .value { font-size:17px; }
+    #hud button { width:32px; height:32px; font-size:13px; box-shadow:0 3px 0 var(--ink); }
+  }
+  @media (max-height:700px) {
+    #overlay { gap:8px; padding:12px; }
+    #overlay h1 { font-size:38px; } #overlay h2 { font-size:26px; } #overlay .big { font-size:38px; }
+    #overlay p, #overlay .card2 { font-size:12.5px; }
+    #overlay button { font-size:18px; padding:8px 28px; }
+  }
+
+  #col { width:min(100%, 420px); }
+  #wrap { position:relative; width:100%; }
+  #hud .item.score .value { font-size:17px; overflow:hidden; text-overflow:ellipsis; }
+  #panel { background:rgba(255,255,255,.16); border:4px solid var(--ink); border-radius:22px; box-shadow:0 6px 0 var(--ink); padding:8px 8px 10px; display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .bar { width:100%; min-height:32px; display:flex; align-items:center; gap:8px; padding:2px 10px; background:#fff; border:3px solid var(--ink); border-radius:999px; font-size:14px; white-space:nowrap; overflow:hidden; }
+  .bar.turn { background:#fff4c2; }
+  .bar .dot { width:16px; height:16px; border-radius:50%; border:3px solid var(--ink); background:var(--c); flex:none; }
+  .bar .nm { overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .bar .ct { margin-left:auto; color:var(--muted); font-size:13px; }
+  @keyframes glow { from { box-shadow:0 0 0 0 rgba(255,210,63,0); } to { box-shadow:0 0 10px 3px rgba(255,210,63,.85); } }
+  #tableWrap { width:min(100%, calc((100dvh - 285px) * .6)); aspect-ratio:3/5; position:relative; }
+  #table { width:100%; height:100%; display:block; border:4px solid var(--ink); border-radius:16px; box-shadow:0 4px 0 var(--ink); background:#bfeaff; touch-action:none; cursor:none; }
+  .bar .sc { margin-left:auto; font-size:20px; font-variant-numeric:tabular-nums; }
+  #msg { min-height:36px; white-space:pre-line; font-size:14.5px; color:#fff; text-shadow:0 2px 0 var(--ink); text-align:center; line-height:1.35; }
+  #overlay .stats { grid-template-columns:auto auto; }
+  #overlay .row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  #overlay .row button { min-width:0; }
+  #overlay input {
+    background:#fff; border:3px solid var(--ink); color:var(--ink); box-shadow:0 4px 0 var(--ink);
+    font-size:18px; font-family:inherit; text-align:center;
+    border-radius:999px; padding:8px 16px; width:210px; user-select:text; outline:none;
+  }
+  #overlay input::placeholder { color:#a99fc9; }
+  #overlay input:focus { box-shadow:0 4px 0 var(--ink), 0 0 0 4px rgba(255,210,63,.6); }
+  #overlay .join input { width:124px; letter-spacing:.2em; text-transform:uppercase; }
+  #overlay .error { font-size:15px; color:#ffb3c4; min-height:1em; paint-order:stroke fill; -webkit-text-stroke:4px var(--ink); }
+  #overlay .back { background:none; border:none; box-shadow:none; color:#fff; font-size:16px; cursor:pointer; padding:6px; font-family:inherit; opacity:.9; min-width:0; }
+  #overlay .code { color:var(--yellow); font-weight:400; paint-order:stroke fill; -webkit-text-stroke:6px var(--ink); text-shadow:0 5px 0 var(--ink); font-size:56px; letter-spacing:.16em; font-variant-numeric:tabular-nums; -webkit-user-select:text; user-select:text; -webkit-touch-callout:default; }
+  #overlay .dots { display:flex; gap:10px; }
+  #overlay .dots span { width:14px; height:14px; border-radius:50%; background:var(--yellow); border:3px solid var(--ink); animation:blink 1.2s infinite; }
+  #overlay .dots span:nth-child(2) { animation-delay:.2s; }
+  #overlay .dots span:nth-child(3) { animation-delay:.4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity:.25; transform:scale(.85); } 40% { opacity:1; transform:scale(1); } }
+  @media (max-height:700px) { #panel { gap:4px; padding:6px; } #tableWrap { width:min(100%, calc((100dvh - 262px) * .6)); } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="col">
+    <div id="hud">
+      <div class="item score"><span class="value" id="turn">에어하키</span></div>
+      <div class="item"><span class="label">WIN</span><span class="value" id="wins">0</span></div>
+      <div class="icons">
+        <button id="resignBtn" title="기권" style="display:none">🏳</button>
+        <button id="muteBtn" title="소리 (M)">🔊</button>
+      </div>
+    </div>
+    <div id="wrap">
+      <div id="panel">
+        <div class="bar" id="barOp"></div>
+        <div id="tableWrap"><canvas id="table"></canvas></div>
+        <div class="bar" id="barMe"></div>
+        <div id="msg"></div>
+      </div>
+      <div id="overlay"></div>
+    </div>
+  </div>
+</div>
+<script src="logic.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
